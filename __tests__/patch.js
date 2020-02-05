@@ -648,6 +648,21 @@ describe("arrays - splice (shrink)", () => {
 	)
 })
 
+describe("arrays - delete", () => {
+	runPatchTest(
+		{
+			x: [
+				{a: 1, b: 2},
+				{c: 3, d: 4}
+			]
+		},
+		d => {
+			delete d.x[1].c
+		},
+		[{op: "remove", path: ["x", 1, "c"]}]
+	)
+})
+
 describe("sets - add - 1", () => {
 	runPatchTest(
 		new Set([1]),
@@ -976,4 +991,23 @@ test.skip("#468", () => {
 
 	const final = applyPatches(state, patches)
 	expect(final).toEqual(nextState)
+})
+
+test("#521", () => {
+	const state = new Map()
+
+	const [nextState, patches] = produceWithPatches(state, draft => {
+		draft.set("hello", new Set(["world"]))
+	})
+
+	let patchedState = applyPatches(state, patches)
+	expect(patchedState).toEqual(nextState)
+
+	const [nextStateV2, patchesV2] = produceWithPatches(nextState, draft => {
+		draft.get("hello").add("immer")
+	})
+
+	expect(applyPatches(nextState, patchesV2)).toEqual(
+		new Map([["hello", new Set(["world", "immer"])]])
+	)
 })
