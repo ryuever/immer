@@ -1,6 +1,15 @@
 "use strict"
-import {Immer, nothing, original, isDraft, immerable} from "../src/index"
+import {
+	Immer,
+	nothing,
+	original,
+	isDraft,
+	immerable,
+	enableAllPlugins
+} from "../src/immer"
 import {each, shallowCopy, isEnumerable, DRAFT_STATE} from "../src/common"
+
+enableAllPlugins()
 
 jest.setTimeout(1000)
 
@@ -75,7 +84,14 @@ function runBaseTest(name, useProxies, autoFreeze, useListener) {
 		test("#466 - mapChangeBug ", () => {
 			const obj = {
 				map: new Map([
-					["a", new Map([["b", true], ["c", true], ["d", true]])],
+					[
+						"a",
+						new Map([
+							["b", true],
+							["c", true],
+							["d", true]
+						])
+					],
 					["b", new Map([["a", true]])],
 					["c", new Map([["a", true]])],
 					["d", new Map([["a", true]])]
@@ -91,7 +107,14 @@ function runBaseTest(name, useProxies, autoFreeze, useListener) {
 			expect(result).toEqual([
 				{
 					map: new Map([
-						["a", new Map([["b", true], ["c", true], ["d", true]])],
+						[
+							"a",
+							new Map([
+								["b", true],
+								["c", true],
+								["d", true]
+							])
+						],
 						["b", new Map()],
 						["c", new Map()],
 						["d", new Map()]
@@ -134,7 +157,14 @@ function runBaseTest(name, useProxies, autoFreeze, useListener) {
 		test("#466 - mapChangeBug2 ", () => {
 			const obj = {
 				map: new Map([
-					["a", new Map([["b", true], ["c", true], ["d", true]])],
+					[
+						"a",
+						new Map([
+							["b", true],
+							["c", true],
+							["d", true]
+						])
+					],
 					["b", new Map([["a", true]])],
 					["c", new Map([["a", true]])],
 					["d", new Map([["a", true]])]
@@ -148,50 +178,71 @@ function runBaseTest(name, useProxies, autoFreeze, useListener) {
 					otherMap.delete("a")
 				})
 			})
-			expect(result).toEqual(
-				{
-					map: new Map([
-						["a", new Map([["b", true], ["c", true], ["d", true]])],
-						["b", new Map([])],
-						["c", new Map([])],
-						["d", new Map([])]
-					])
-				}
-			)
-			expect(p).toEqual(
-				[
-					{
-						op: "remove",
-						path: ["map", "b", "a"]
-					},
-					{
-						op: "remove",
-						path: ["map", "c", "a"]
-					},
-					{
-						op: "remove",
-						path: ["map", "d", "a"]
-					}
+			expect(result).toEqual({
+				map: new Map([
+					[
+						"a",
+						new Map([
+							["b", true],
+							["c", true],
+							["d", true]
+						])
+					],
+					["b", new Map([])],
+					["c", new Map([])],
+					["d", new Map([])]
 				])
-			expect(ip).toEqual(
-				[
-					{
-						op: "add",
-						path: ["map", "b", "a"],
-						value: true
-					},
-					{
-						op: "add",
-						path: ["map", "c", "a"],
-						value: true
-					},
-					{
-						op: "add",
-						path: ["map", "d", "a"],
-						value: true
-					}
-				]
-			)
+			})
+			expect(p).toEqual([
+				{
+					op: "remove",
+					path: ["map", "b", "a"]
+				},
+				{
+					op: "remove",
+					path: ["map", "c", "a"]
+				},
+				{
+					op: "remove",
+					path: ["map", "d", "a"]
+				}
+			])
+			expect(ip).toEqual([
+				{
+					op: "add",
+					path: ["map", "b", "a"],
+					value: true
+				},
+				{
+					op: "add",
+					path: ["map", "c", "a"],
+					value: true
+				},
+				{
+					op: "add",
+					path: ["map", "d", "a"],
+					value: true
+				}
+			])
+		})
+
+		test("#586", () => {
+			const base = new Set([1, 2])
+			const set = produce(base, draftSet => {
+				debugger
+				expect(Array.from(draftSet)).toEqual([1, 2])
+				draftSet.add(3)
+			})
+			expect(Array.from(set).sort()).toEqual([1, 2, 3])
+		})
+
+		test("#627 - new map key with value=undefined", () => {
+			const map = new Map()
+			const map1 = produce(map, draft => {
+				draft.set("key", undefined)
+			})
+			expect(map1.has("key")).toBe(true)
+			expect(map1.get("key")).toBe(undefined)
 		})
 	})
 }

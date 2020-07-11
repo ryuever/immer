@@ -1,5 +1,7 @@
 "use strict"
-import produce, {original, setUseProxies} from "../src/index"
+import produce, {original, setUseProxies, enableAllPlugins} from "../src/immer"
+
+enableAllPlugins()
 
 describe("original", () => {
 	const baseState = {
@@ -33,17 +35,25 @@ describe("original", () => {
 		})
 	})
 
-	it("should return undefined for new values on the draft", () => {
+	it("should throw undefined for new values on the draft", () => {
 		produce(baseState, draftState => {
 			draftState.c = {}
 			draftState.d = 3
-			expect(original(draftState.c)).toBeUndefined()
-			expect(original(draftState.d)).toBeUndefined()
+			expect(() => original(draftState.c)).toThrowErrorMatchingInlineSnapshot(
+				`"[Immer] 'original' expects a draft, got: [object Object]"`
+			)
+			expect(() => original(draftState.d)).toThrowErrorMatchingInlineSnapshot(
+				`"[Immer] 'original' expects a draft, got: 3"`
+			)
 		})
 	})
 
 	it("should return undefined for an object that is not proxied", () => {
-		expect(original({})).toBeUndefined()
-		expect(original(3)).toBeUndefined()
+		expect(() => original({})).toThrowErrorMatchingInlineSnapshot(
+			`"[Immer] 'original' expects a draft, got: [object Object]"`
+		)
+		expect(() => original(3)).toThrowErrorMatchingInlineSnapshot(
+			`"[Immer] 'original' expects a draft, got: 3"`
+		)
 	})
 })

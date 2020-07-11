@@ -4,8 +4,11 @@ import {
 	createDraft,
 	finishDraft,
 	produce,
-	isDraft
-} from "../src/index"
+	isDraft,
+	enableAllPlugins
+} from "../src/immer"
+
+enableAllPlugins()
 
 runTests("proxy", true)
 runTests("es5", false)
@@ -98,8 +101,7 @@ function runTests(name, useProxies) {
 			expect(res2).toEqual({a: 2, b: 4})
 		})
 
-		// TODO: fix
-		it.skip("combines with produce - 2", () => {
+		it("combines with produce - 2", () => {
 			const state = {a: 1}
 
 			const res1 = produce(state, draft => {
@@ -123,11 +125,12 @@ function runTests(name, useProxies) {
 			})
 		})
 
-		it("should not finish drafts from produce", () => {
-			produce({x: 1}, draft => {
-				expect(() => finishDraft(draft)).toThrowErrorMatchingSnapshot()
+		!global.USES_BUILD &&
+			it("should not finish drafts from produce", () => {
+				produce({x: 1}, draft => {
+					expect(() => finishDraft(draft)).toThrowErrorMatchingSnapshot()
+				})
 			})
-		})
 
 		it("should not finish twice", () => {
 			const draft = createDraft({a: 1})

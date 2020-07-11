@@ -1,14 +1,13 @@
 language: node_js
 node_js:
-  - "8"
-  - "10"
+  - "10.18.1"
   # - "node"
 env:
   - NODE_ENV=TEST
 cache:
   yarn: true
-  directories:
-    - "node_modules"
+#  directories:
+#    - "node_modules"
 before_script:
   - yarn global add if-node-version
 script:
@@ -19,8 +18,6 @@ jobs:
   include:
     - stage: deploy
       if: branch == master && !fork
-      node_js: "8.16.0" # pre-installed version
       script:
-        - yarn build
-        - yarn global add semantic-release@^15
-        - semantic-release
+        - NODE_ENV= yarn build
+        - yarn semantic-release

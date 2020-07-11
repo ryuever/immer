@@ -1,5 +1,11 @@
 "use strict"
-import produce, {setUseProxies, setAutoFreeze} from "../src/index"
+import produce, {
+	setUseProxies,
+	setAutoFreeze,
+	enableAllPlugins
+} from "../src/immer"
+
+enableAllPlugins()
 
 const {isFrozen} = Object
 
@@ -24,13 +30,13 @@ function runTests(name, useProxies) {
 			expect(isFrozen(next.arr)).toBeTruthy()
 		})
 
-		it("never freezes reused state", () => {
+		it("freezes reused base state", () => {
 			const base = {arr: [1], obj: {a: 1}}
 			const next = produce(base, draft => {
 				draft.arr.push(1)
 			})
 			expect(next.obj).toBe(base.obj)
-			expect(isFrozen(next.obj)).toBeFalsy()
+			expect(isFrozen(next.obj)).toBeTruthy()
 		})
 
 		describe("the result is always auto-frozen when", () => {
@@ -142,15 +148,9 @@ function runTests(name, useProxies) {
 			const res = produce(base, draft => {
 				draft.set("a", 1)
 			})
-			expect(() => res.set("b", 2)).toThrow(
-				"This object has been frozen and should not be mutated"
-			)
-			expect(() => res.clear()).toThrow(
-				"This object has been frozen and should not be mutated"
-			)
-			expect(() => res.delete("b")).toThrow(
-				"This object has been frozen and should not be mutated"
-			)
+			expect(() => res.set("b", 2)).toThrowErrorMatchingSnapshot()
+			expect(() => res.clear()).toThrowErrorMatchingSnapshot()
+			expect(() => res.delete("b")).toThrowErrorMatchingSnapshot()
 
 			// In draft, still editable
 			expect(produce(res, d => void d.set("a", 2))).not.toBe(res)
@@ -161,15 +161,9 @@ function runTests(name, useProxies) {
 			const res = produce(base, draft => {
 				base.add(1)
 			})
-			expect(() => base.add(2)).toThrow(
-				"This object has been frozen and should not be mutated"
-			)
-			expect(() => base.delete(1)).toThrow(
-				"This object has been frozen and should not be mutated"
-			)
-			expect(() => base.clear()).toThrow(
-				"This object has been frozen and should not be mutated"
-			)
+			expect(() => base.add(2)).toThrowErrorMatchingSnapshot()
+			expect(() => base.delete(1)).toThrowErrorMatchingSnapshot()
+			expect(() => base.clear()).toThrowErrorMatchingSnapshot()
 
 			// In draft, still editable
 			expect(produce(res, d => void d.add(2))).not.toBe(res)
@@ -178,7 +172,14 @@ function runTests(name, useProxies) {
 		it("Map#get() of frozen object will became draftable", () => {
 			const base = {
 				map: new Map([
-					["a", new Map([["a", true], ["b", true], ["c", true]])],
+					[
+						"a",
+						new Map([
+							["a", true],
+							["b", true],
+							["c", true]
+						])
+					],
 					["b", new Map([["a", true]])],
 					["c", new Map([["a", true]])]
 				])
@@ -189,13 +190,59 @@ function runTests(name, useProxies) {
 
 			// https://github.com/immerjs/immer/issues/472
 			produce(frozen, draft => {
-				// if (useProxies) debugger
 				;["b", "c"].forEach(other => {
 					const m = draft.map.get(other)
 
 					m.delete("a")
 				})
 			})
+		})
+
+		it("never freezes non-enumerable fields #590", () => {
+			const component = {}
+			Object.defineProperty(component, "state", {
+				value: {x: 1},
+				enumerable: false,
+				writable: true,
+				configurable: true
+			})
+
+			const state = {
+				x: 1
+			}
+
+			const state2 = produce(state, draft => {
+				draft.ref = component
+			})
+
+			expect(() => {
+				state2.ref.state.x++
+			}).not.toThrow()
+			expect(state2.ref.state.x).toBe(2)
+		})
+
+		it("never freezes symbolic fields #590", () => {
+			const component = {}
+			const symbol = Symbol("test")
+			Object.defineProperty(component, symbol, {
+				value: {x: 1},
+				enumerable: true,
+				writable: true,
+				configurable: true
+			})
+
+			const state = {
+				x: 1
+			}
+
+			const state2 = produce(state, draft => {
+				draft.ref = component
+			})
+
+			expect(() => {
+				state2.ref[symbol].x++
+			}).not.toThrow()
+			expect(state2.ref[symbol].x).toBe(2)
 		})
 	})
 }

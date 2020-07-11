@@ -1,13 +1,15 @@
 // @flow
 import produce, {
+    enableMapSet,
     setAutoFreeze,
     setUseProxies,
     produce as produce2,
     applyPatches,
     Patch,
     original
-} from "../../dist/immer.js"
+} from "../../dist/index.js.flow"
 
+enableMapSet()
 setAutoFreeze(true)
 setUseProxies(true)
 
@@ -28,7 +30,7 @@ const result2 = produce({x: 3}, draft => {
 console.log(result2.x)
 
 const f = produce(
-    (draft): {x: number} => {
+    (draft): {| x: number |} => {
         return {x: 4}
     }
 )
@@ -75,7 +77,7 @@ produce({x: 3}, [])
 {
     // curried f & no initial arg
     const f2 = produce(
-        (state: {x: number}, increment: number): void => {
+        (state: {| x: number |}, increment: number): void => {
             state.x += increment
         }
     )
@@ -84,6 +86,20 @@ produce({x: 3}, [])
 
     // $ExpectError
     f2(undefined, 3)
+}
+
+type State = {| user: {| age: number |} |}
+{
+    declare function setState(updater: (State) => $Shape<State>): void
+    // curried use with setState, infer type of draft
+    setState(produce(draft => {
+        if (draft.user.age === 10) {
+            return
+        }
+        draft.user.age += 1
+        // $ExpectError
+        draft.user.name = "missing"
+    }))
 }
 
 {
@@ -122,7 +138,8 @@ produce({x: 3}, [])
 }
 
 {
-    produce([1], draftState => {
+    const arr: Array<number> = [1]
+    produce(arr, draftState => {
         const a = original(draftState)
         if (a) {
             const b: number = a[0]
@@ -130,4 +147,42 @@ produce({x: 3}, [])
             const c: string = a[0]
         }
     })
+}
+
+function testMap(state: Map<number, string>) {
+    // normal
+    state = produce(state, draft => {
+        if (draft.has(1)) {
+            return
+        }
+        // $ExpectError
+        draft.set(1, 2)
+        draft.set(1, "tada")
+    })
+    // curried, no initial state
+    const f1 = produce(draft=> { draft.set(2, "ok") })
+    state = f1(state)
+    // curried, with initial state
+    const f2 = produce(draft=> { draft.set(2, "ok") }, state)
+    state = f2(state)
+    state = f2(undefined)
+}
+
+function testSet(state: Set<number>) {
+    // normal
+    state = produce(state, draft => {
+        if (draft.has(1)) {
+            return
+        }
+        // $ExpectError
+        draft.add("me")
+        draft.add(100)
+    })
+    // curried, no initial state
+    const f1 = produce(draft => { draft.add(draft.size) })
+    state = f1(state)
+    // curried, with initial state
+    const f2 = produce(draft => { draft.add(draft.size) }, state)
+    state = f2(state)
+    state = f2(undefined)
 }

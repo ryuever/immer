@@ -39,7 +39,7 @@ const newState = produce(state, draft => {
 // `newState.x` cannot be modified here
 ```
 
-This ensures that the only place you can modify your state is in your produce callbacks. It even works recursively and with `ReadonlyArray`s!
+This ensures that the only place you can modify your state is in your produce callbacks. It even works recursively and with `ReadonlyArray`!
 
 For curried reducers, the type is inferred from the first argument of recipe function, so make sure to type it. The `Draft` utility type can be used if the state argument type is immutable:
 
@@ -93,7 +93,7 @@ This will generate the error:
 The type 'readonly Todo[]' is 'readonly' and cannot be assigned to the mutable type '{ done: boolean; }[]'
 ```
 
-The reason for this error is that we assign our read only, immutable array to our draft, which expects a mutable type, with methods like `.push` etc etc. As far as TS is concerned, those are not exposed from our original `State`. To hint TypeScript that we want to upcast the collection here to a mutable array for draft purposes, we can use the utility `asDraft`:
+The reason for this error is that we assign our read only, immutable array to our draft, which expects a mutable type, with methods like `.push` etc etc. As far as TS is concerned, those are not exposed from our original `State`. To hint TypeScript that we want to upcast the collection here to a mutable array for draft purposes, we can use the utility `castDraft`:
 
 `draft.finishedTodos = castDraft(state.unfinishedTodos)` will make the error disappear.
 
@@ -123,8 +123,8 @@ const nextState = castImmutable(produce(baseState, _draft => {}))
 
 **Note:** Immer v5.3+ supports TypeScript v3.7+ only.
 
-**Note:** Immer v1.9+ supports TypeScript v3.1+ only.
-
 **Note:** Immer v3.0+ supports TypeScript v3.4+ only.
+
+**Note:** Immer v1.9+ supports TypeScript v3.1+ only.
 
 **Note:** Flow support might be removed in future versions and we recommend TypeScript
