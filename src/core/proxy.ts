@@ -129,16 +129,37 @@ export const objectTraps: ProxyHandler<ProxyState> = {
 	ownKeys(state) {
 		return Reflect.ownKeys(latest(state))
 	},
-	set(state, prop: string /* strictly not, but helps TS */, value) {
-		state.assigned_[prop] = true
+	set(
+		state: ProxyObjectState,
+		prop: string /* strictly not, but helps TS */,
+		value
+	) {
+		const desc = getDescriptorFromProto(latest(state), prop)
+		if (desc?.set) {
+			// special case: if this write is captured by a setter, we have
+			// to trigger it with the correct context
+			desc.set.call(state.draft_, value)
+			return true
+		}
 		if (!state.modified_) {
-			if (is(value, peek(latest(state), prop)) && value !== undefined)
+			// the last check is because we need to be able to distinguish setting a non-existig to undefined (which is a change)
+			// from setting an existing property with value undefined to undefined (which is not a change)
+			const current = peek(latest(state), prop)
+			// special case, if we assigning the original value to a draft, we can ignore the assignment
+			const currentState: ProxyObjectState = current?.[DRAFT_STATE]
+			if (currentState && currentState.base_ === value) {
+				state.copy_![prop] = value
+				state.assigned_[prop] = false
+				return true
+			}
+			if (is(value, current) && (value !== undefined || has(state.base_, prop)))
 				return true
 			prepareCopy(state)
 			markChanged(state)
 		}
 		// @ts-ignore
 		state.copy_![prop] = value
+		state.assigned_[prop] = true
 		return true
 	},
 	deleteProperty(state, prop: string) {
@@ -208,14 +229,26 @@ function peek(draft: Drafted, prop: PropertyKey) {
 }
 
 function readPropFromProto(state: ImmerState, source: any, prop: PropertyKey) {
+	const desc = getDescriptorFromProto(source, prop)
+	return desc
+		? `value` in desc
+			? desc.value
+			: // This is a very special case, if the prop is a getter defined by the
+			  // prototype, we should invoke it with the draft as context!
+			  desc.get?.call(state.draft_)
+		: undefined
+}
+
+function getDescriptorFromProto(
+	source: any,
+	prop: PropertyKey
+): PropertyDescriptor | undefined {
 	// 'in' checks proto!
 	if (!(prop in source)) return undefined
 	let proto = Object.getPrototypeOf(source)
 	while (proto) {
 		const desc = Object.getOwnPropertyDescriptor(proto, prop)
-		// This is a very special case, if the prop is a getter defined by the
-		// prototype, we should invoke it with the draft as context!
-		if (desc) return `value` in desc ? desc.value : desc.get?.call(state.draft_)
+		if (desc) return desc
 		proto = Object.getPrototypeOf(proto)
 	}
 	return undefined

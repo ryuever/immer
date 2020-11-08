@@ -15,7 +15,8 @@ import {
 	markChanged,
 	ProxyTypeMap,
 	ProxyTypeSet,
-	die
+	die,
+	each
 } from "../internal"
 
 export function enableMapSet() {
@@ -107,10 +108,15 @@ export function enableMapSet() {
 		p.clear = function() {
 			const state: MapState = this[DRAFT_STATE]
 			assertUnrevoked(state)
-			prepareMapCopy(state)
-			markChanged(state)
-			state.assigned_ = new Map()
-			return state.copy_!.clear()
+			if (latest(state).size) {
+				prepareMapCopy(state)
+				markChanged(state)
+				state.assigned_ = new Map()
+				each(state.base_, key => {
+					state.assigned_!.set(key, false)
+				})
+				state.copy_!.clear()
+			}
 		}
 
 		p.forEach = function(
@@ -269,9 +275,11 @@ export function enableMapSet() {
 		p.clear = function() {
 			const state: SetState = this[DRAFT_STATE]
 			assertUnrevoked(state)
-			prepareSetCopy(state)
-			markChanged(state)
-			return state.copy_!.clear()
+			if (latest(state).size) {
+				prepareSetCopy(state)
+				markChanged(state)
+				state.copy_!.clear()
+			}
 		}
 
 		p.values = function(): IterableIterator<any> {
